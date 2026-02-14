@@ -5,7 +5,7 @@ The user wants to delegate: $ARGUMENTS
 Rules:
 - NEVER write application code yourself
 - You handle ALL git operations (commit, push, PR) — sub-agents do NOT
-- Use the zarlbot PAT for all GitHub operations: `GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat)`
+- Use the zarlbot PAT for all GitHub operations: `GH_TOKEN=$ZARLBOT_TOKEN`
 - Use the Task tool to launch sub-agents (NOT `claude -p` which can't nest)
 
 ## Process
@@ -29,7 +29,7 @@ Read `.manager/specs/<id>-<name>.md` to get:
 
 **If the repo doesn't exist on GitHub:**
 ```bash
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh repo create zarlbot/<repo-name> --public --description "<description>"
+GH_TOKEN=$ZARLBOT_TOKEN gh repo create zarlbot/<repo-name> --public --description "<description>"
 ```
 
 Then scaffold it with a CI workflow:
@@ -104,7 +104,7 @@ The working directory for the sub-agent is:
 
 #### Step 4: Comment on GitHub issue
 ```bash
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh issue comment <issue-number> --repo <target-repo> --body "Sub-agent launched. Role: <role>. Branch: work/<id>-<name>"
+GH_TOKEN=$ZARLBOT_TOKEN gh issue comment <issue-number> --repo <target-repo> --body "Sub-agent launched. Role: <role>. Branch: work/<id>-<name>"
 ```
 
 #### Step 5: Launch the sub-agent
@@ -138,7 +138,7 @@ When the sub-agent completes (you'll get a task notification), perform these git
 ```bash
 # Set up auth for push
 cd <working-directory>
-export GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat)
+export GH_TOKEN=$ZARLBOT_TOKEN
 
 # Stage and commit all changes
 git add -A
@@ -148,7 +148,7 @@ git -c user.name=zarlbot -c user.email=zarlbot@users.noreply.github.com commit -
 git push -u origin work/<id>-<name>
 
 # Create PR
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh pr create \
+GH_TOKEN=$ZARLBOT_TOKEN gh pr create \
   --repo zarlbot/<repo-name> \
   --title "<id>: <title>" \
   --body "Closes #<issue-number>
@@ -157,7 +157,7 @@ Spec: .manager/specs/<id>-<name>.md" \
   --base main
 
 # Comment on issue
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh issue comment <issue-number> \
+GH_TOKEN=$ZARLBOT_TOKEN gh issue comment <issue-number> \
   --repo zarlbot/<repo-name> \
   --body "PR created: <pr-url>"
 ```

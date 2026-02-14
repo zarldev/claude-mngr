@@ -58,15 +58,15 @@ Issues are created on the **target repo** using the zarlbot PAT. If the repo doe
 
 For each item, run:
 ```bash
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh issue create --repo <target-repo> --title "<ID>: <Title>" --body "Spec: .manager/specs/<id>-<name>.md" --label "<role>"
+GH_TOKEN=$ZARLBOT_TOKEN gh issue create --repo <target-repo> --title "<ID>: <Title>" --body "Spec: .manager/specs/<id>-<name>.md" --label "<role>"
 ```
 
 If labels don't exist yet on the target repo, create them:
 ```bash
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh label create backend --repo <target-repo> --color 0E8A16 --description "Go backend work"
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh label create frontend --repo <target-repo> --color 1D76DB --description "React/TypeScript frontend work"
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh label create proto --repo <target-repo> --color D93F0B --description "Protobuf/API design work"
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh label create testing --repo <target-repo> --color FBCA04 --description "Testing work"
+GH_TOKEN=$ZARLBOT_TOKEN gh label create backend --repo <target-repo> --color 0E8A16 --description "Go backend work"
+GH_TOKEN=$ZARLBOT_TOKEN gh label create frontend --repo <target-repo> --color 1D76DB --description "React/TypeScript frontend work"
+GH_TOKEN=$ZARLBOT_TOKEN gh label create proto --repo <target-repo> --color D93F0B --description "Protobuf/API design work"
+GH_TOKEN=$ZARLBOT_TOKEN gh label create testing --repo <target-repo> --color FBCA04 --description "Testing work"
 ```
 
 If the target repo doesn't exist yet, that's fine — `/delegate` will create it. Create the issue on `zarldev/claude-mngr` instead and note the target repo in the body.

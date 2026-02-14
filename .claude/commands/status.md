@@ -3,7 +3,7 @@ You are acting as a PM — monitoring the progress of delegated work.
 Rules:
 - NEVER write application code
 - You MAY run git commands and `gh` commands to check status
-- Use zarlbot PAT for cross-repo checks: `GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat)`
+- Use zarlbot PAT for cross-repo checks: `GH_TOKEN=$ZARLBOT_TOKEN`
 
 ## Process
 
@@ -26,7 +26,7 @@ For each blocker found, read it and report:
 Check issues across zarlbot repos and this repo:
 ```bash
 gh issue list --state all
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh search issues --owner zarlbot --state open
+GH_TOKEN=$ZARLBOT_TOKEN gh search issues --owner zarlbot --state open
 ```
 
 Report the state of each work item's issue (open/closed).
@@ -46,7 +46,7 @@ Report:
 
 ### Step 4: Check for PRs
 ```bash
-GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh search prs --owner zarlbot --state open
+GH_TOKEN=$ZARLBOT_TOKEN gh search prs --owner zarlbot --state open
 gh pr list --state all
 ```
 

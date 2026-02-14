@@ -26,9 +26,9 @@ Application code lives in dedicated repos under the `zarlbot/` GitHub account. E
 
 ### Identity
 
-- **zarlbot PAT**: `/Users/bruno/.zarlbot/.ghpat`
+- **zarlbot token**: set `ZARLBOT_TOKEN` environment variable (e.g. in shell profile)
 - **Git author**: `zarlbot <zarlbot@users.noreply.github.com>`
-- All git ops (commit, push, PR, issue comments) use zarlbot identity
+- All git ops (commit, push, PR, issue comments) use zarlbot identity via `GH_TOKEN=$ZARLBOT_TOKEN`
 
 ## Directory Structure
 
