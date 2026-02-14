@@ -37,6 +37,9 @@ Background, related specs, dependencies.
 - Specific deliverables
 - Acceptance criteria
 
+## Target Repo
+zarlbot/<repo-name>
+
 ## Agent Role
 backend | frontend | proto | testing
 
@@ -48,19 +51,25 @@ backend | frontend | proto | testing
 Any additional context from the discussion.
 ```
 
+Note: The `Target Repo` field tells `/delegate` which zarlbot repo to create/clone. Use `zarlbot/<new-name>` for new projects or `zarlbot/<existing>` for existing repos.
+
 ### Step 3: Create GitHub issues
+Issues are created on the **target repo** using the zarlbot PAT. If the repo doesn't exist yet, create the issue on `zarldev/claude-mngr` as a tracking issue.
+
 For each item, run:
 ```bash
-gh issue create --title "<ID>: <Title>" --body "Spec: .manager/specs/<id>-<name>.md" --label "<role>"
+GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh issue create --repo <target-repo> --title "<ID>: <Title>" --body "Spec: .manager/specs/<id>-<name>.md" --label "<role>"
 ```
 
-If labels don't exist yet, create them:
+If labels don't exist yet on the target repo, create them:
 ```bash
-gh label create backend --color 0E8A16 --description "Go backend work"
-gh label create frontend --color 1D76DB --description "React/TypeScript frontend work"
-gh label create proto --color D93F0B --description "Protobuf/API design work"
-gh label create testing --color FBCA04 --description "Testing work"
+GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh label create backend --repo <target-repo> --color 0E8A16 --description "Go backend work"
+GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh label create frontend --repo <target-repo> --color 1D76DB --description "React/TypeScript frontend work"
+GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh label create proto --repo <target-repo> --color D93F0B --description "Protobuf/API design work"
+GH_TOKEN=$(cat /Users/bruno/.zarlbot/.ghpat) gh label create testing --repo <target-repo> --color FBCA04 --description "Testing work"
 ```
+
+If the target repo doesn't exist yet, that's fine — `/delegate` will create it. Create the issue on `zarldev/claude-mngr` instead and note the target repo in the body.
 
 ### Step 4: Output summary table
 
