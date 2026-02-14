@@ -1,0 +1,13 @@
+baseURL = 'https://zarldev.github.io/claude-mngr/'
+languageCode = 'en-us'
+title = 'tsk'
+
+[params]
+  description = 'A simple CLI task tracker'
+
+[markup]
+  [markup.highlight]
+    style = 'monokai'
+    lineNos = false
+  [markup.goldmark.renderer]
+    unsafe = true

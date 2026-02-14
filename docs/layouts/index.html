@@ -1,0 +1,79 @@
+{{ define "main" }}
+<section class="hero">
+  <div class="hero-inner">
+    <h1>tsk</h1>
+    <p class="hero-tagline">A simple CLI task tracker that stays out of your way.</p>
+    <p class="hero-desc">No servers, no accounts, no configuration. Just a single binary and a JSON file.</p>
+    <div class="hero-install">
+      <code>go install github.com/zarldev/claude-mngr/cmd/tsk@latest</code>
+    </div>
+    <div class="hero-links">
+      <a href="{{ "docs/getting-started/" | relURL }}" class="btn btn-primary">Get Started</a>
+      <a href="{{ "docs/commands/" | relURL }}" class="btn btn-secondary">Commands Reference</a>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="features-inner">
+    <div class="feature">
+      <h3>Fast</h3>
+      <p>Single binary, no startup overhead. Add a task in milliseconds.</p>
+    </div>
+    <div class="feature">
+      <h3>Simple</h3>
+      <p>Four commands: <code>add</code>, <code>list</code>, <code>done</code>, <code>rm</code>. Nothing else to learn.</p>
+    </div>
+    <div class="feature">
+      <h3>Portable</h3>
+      <p>Tasks stored in <code>~/.tasks.json</code>. Easy to sync, back up, or inspect.</p>
+    </div>
+    <div class="feature">
+      <h3>Zero Dependencies</h3>
+      <p>Pure Go, no external services. Works offline, works everywhere Go runs.</p>
+    </div>
+  </div>
+</section>
+
+<section class="quickstart">
+  <div class="quickstart-inner">
+    <h2>Quick Start</h2>
+    <pre><code>$ tsk add Buy groceries
+added task 1: Buy groceries
+
+$ tsk add Write tests for auth module
+added task 2: Write tests for auth module
+
+$ tsk list
+  1  [ ]  Buy groceries                            just now
+  2  [ ]  Write tests for auth module               just now
+
+$ tsk done 1
+task 1 marked done
+
+$ tsk list
+  1  [x]  Buy groceries                            2m ago
+  2  [ ]  Write tests for auth module               2m ago</code></pre>
+  </div>
+</section>
+
+<section class="docs-links">
+  <div class="docs-links-inner">
+    <h2>Documentation</h2>
+    <div class="docs-grid">
+      <a href="{{ "docs/getting-started/" | relURL }}" class="docs-card">
+        <h3>Getting Started</h3>
+        <p>Install tsk and learn the basic workflow.</p>
+      </a>
+      <a href="{{ "docs/commands/" | relURL }}" class="docs-card">
+        <h3>Commands Reference</h3>
+        <p>Detailed reference for all commands and flags.</p>
+      </a>
+      <a href="{{ "docs/configuration/" | relURL }}" class="docs-card">
+        <h3>Configuration</h3>
+        <p>Where data lives and how the JSON file works.</p>
+      </a>
+    </div>
+  </div>
+</section>
+{{ end }}
