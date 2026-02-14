@@ -1,0 +1,18 @@
+{{ define "main" }}
+<div class="page-layout">
+  <aside class="sidebar">
+    <nav class="sidebar-nav">
+      <h4>Documentation</h4>
+      <ul>
+        {{ $current := .File.BaseFileName }}
+        <li><a href="{{ "docs/getting-started/" | relURL }}"{{ if eq $current "getting-started" }} class="active"{{ end }}>Getting Started</a></li>
+        <li><a href="{{ "docs/commands/" | relURL }}"{{ if eq $current "commands" }} class="active"{{ end }}>Commands Reference</a></li>
+        <li><a href="{{ "docs/configuration/" | relURL }}"{{ if eq $current "configuration" }} class="active"{{ end }}>Configuration</a></li>
+      </ul>
+    </nav>
+  </aside>
+  <article class="content">
+    {{ .Content }}
+  </article>
+</div>
+{{ end }}

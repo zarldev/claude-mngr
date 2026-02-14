@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="{{ .Site.LanguageCode }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ if .IsHome }}{{ .Site.Title }}{{ else }}{{ .Title }} — {{ .Site.Title }}{{ end }}</title>
+  <meta name="description" content="{{ .Site.Params.description }}">
+  <link rel="stylesheet" href="{{ "css/style.css" | relURL }}">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-inner">
+      <a href="{{ .Site.BaseURL }}" class="nav-brand">tsk</a>
+      <div class="nav-links">
+        <a href="{{ "docs/getting-started/" | relURL }}">Docs</a>
+        <a href="https://github.com/zarldev/claude-mngr">GitHub</a>
+      </div>
+    </div>
+  </nav>
+  <main>
+    {{ block "main" . }}{{ end }}
+  </main>
+  <footer>
+    <div class="footer-inner">
+      <p>tsk — a simple CLI task tracker</p>
+    </div>
+  </footer>
+</body>
+</html>
