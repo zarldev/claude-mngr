@@ -6,29 +6,32 @@ This repository is the orchestration layer for a two-tier agent system. It conta
 
 - **Manager** (interactive) decomposes work via slash commands, delegates to sub-agents, reviews output, and handles all git operations.
 - **Sub-agents** (headless) write code and run tests. They do NOT handle git ops — the manager does that.
-- **zarlbot** is the bot GitHub account. Sub-agents commit, push, and create PRs as zarlbot.
 
 ### Repo Separation
 
-| Repo | Purpose | Owner |
-|------|---------|-------|
-| `zarldev/claude-mngr` | Orchestration hub (this repo) | Bruno |
-| `zarlbot/<project>` | Application code | zarlbot |
-
-Application code lives in dedicated repos under the `zarlbot/` GitHub account. Each project gets its own repo (e.g. `zarlbot/tsk`, `zarlbot/next-tool`).
+| Repo | Purpose |
+|------|---------|
+| `zarldev/claude-mngr` | Orchestration hub (this repo) |
+| `zarldev/<project>` | Application code (e.g. `zarldev/tsk`) |
 
 ### Workspaces
 
 | Path | Purpose |
 |------|---------|
 | `~/src/claude-mngr/` | Manager repo (orchestration) |
-| `~/src/zarlbot/<repo>/` | Sub-agent working directories (clones of zarlbot repos) |
+| `~/src/zarldev/<repo>/` | Sub-agent working directories |
 
 ### Identity
 
-- **zarlbot token**: set `ZARLBOT_TOKEN` environment variable (e.g. in shell profile)
-- **Git author**: `zarlbot <zarlbot@users.noreply.github.com>`
-- All git ops (commit, push, PR, issue comments) use zarlbot identity via `GH_TOKEN=$ZARLBOT_TOKEN`
+Single identity — `zarldev` (Bruno's GitHub account). All operations use the default `gh` auth.
+
+- **Git author**: default git config (Bruno's identity)
+- **All GitHub ops**: bare `gh` (no token overrides needed)
+- No bot accounts, no PATs, no token env vars
+
+### Review Strategy
+
+CI is the merge gate, not GitHub approvals. The `/review` command does the actual code review (reads diff, checks spec compliance) and comments findings on the PR. If review passes and CI is green, merge directly. No formal GitHub approval required.
 
 ## Directory Structure
 
@@ -43,23 +46,24 @@ Application code lives in dedicated repos under the `zarlbot/` GitHub account. E
 ## Conventions
 
 ### Specs
-Work items live in `.manager/specs/<id>-<name>.md`. The spec is the contract — sub-agents must deliver exactly what the spec describes, nothing more. Each spec includes a `Target Repo` field indicating which zarlbot repo the work targets.
+Work items live in `.manager/specs/<id>-<name>.md`. The spec is the contract — sub-agents must deliver exactly what the spec describes, nothing more. Each spec includes a `Target Repo` field indicating which zarldev repo the work targets.
 
 ### Sub-Agent Launching
 Sub-agents are launched via the Task tool (`subagent_type: "general-purpose"`, `run_in_background: true`). They cannot nest `claude` CLI sessions. Sub-agents only write code and run tests — they do NOT run git commands, create PRs, or comment on issues.
 
 ### Git Operations
 The manager handles all git operations after a sub-agent completes:
-1. `git add` + `git commit` (as zarlbot author)
-2. `git push` (using zarlbot PAT)
-3. `gh pr create` (using zarlbot PAT)
-4. `gh issue comment` (using zarlbot PAT)
+1. `git add` + `git commit`
+2. `git push`
+3. `gh pr create`
+4. `gh issue comment` (review findings)
+5. `gh pr merge --squash --delete-branch`
 
 ### Blockers
 If a sub-agent gets stuck, it writes a blocker file to `.manager/blockers/<id>-<name>.md` using the Write tool. The manager picks these up via `/status`.
 
 ### Branches
-Sub-agents work on branches named `work/<id>-<name>`. For parallel agents on the same repo, worktrees are used within the clone at `~/src/zarlbot/<repo>/`.
+Sub-agents work on branches named `work/<id>-<name>`. For parallel agents on the same repo, worktrees are used within the clone at `~/src/zarldev/<repo>/`.
 
 ### No Co-Authored-By
 Commits never include co-authored-by lines.

@@ -7,7 +7,7 @@ Rules:
 - NEVER use Edit, Write, or NotebookEdit tools on application files
 - You MAY comment on GitHub PRs and issues via `gh`
 - You MAY read any file to understand the changes
-- Use zarlbot PAT for cross-repo operations: `GH_TOKEN=$ZARLBOT_TOKEN`
+- All GitHub ops use bare `gh` (default zarldev auth)
 
 ## Process
 
@@ -16,14 +16,14 @@ Read `.manager/specs/<id>-<name>.md` for the work item. Note the target repo.
 
 ### Step 2: Find the PR
 ```bash
-GH_TOKEN=$ZARLBOT_TOKEN gh pr list --repo <target-repo> --head work/<id>-<name>
+gh pr list --repo <target-repo> --head work/<id>-<name>
 ```
 
 If no PR exists, check the working directory for uncommitted work and report that the agent may not have finished.
 
 ### Step 3: Read the diff
 ```bash
-GH_TOKEN=$ZARLBOT_TOKEN gh pr diff <pr-number> --repo <target-repo>
+gh pr diff <pr-number> --repo <target-repo>
 ```
 
 ### Step 4: Review against spec
@@ -41,14 +41,18 @@ Check for:
 - Test coverage
 
 ### Step 6: Provide feedback
-If changes are needed:
+If changes are needed, comment on the PR:
 ```bash
-GH_TOKEN=$ZARLBOT_TOKEN gh pr review <pr-number> --repo <target-repo> --request-changes --body "..."
+gh pr comment <pr-number> --repo <target-repo> --body "## Review: Changes Requested
+..."
 ```
 
-If approved:
+If approved, comment findings and merge:
 ```bash
-GH_TOKEN=$ZARLBOT_TOKEN gh pr review <pr-number> --repo <target-repo> --approve --body "..."
+gh pr comment <pr-number> --repo <target-repo> --body "## Review: Approved
+..."
+
+gh pr merge <pr-number> --repo <target-repo> --squash --delete-branch
 ```
 
 ### Step 7: Report to user
