@@ -77,3 +77,14 @@ Commits never include co-authored-by lines.
 | `/delegate <id>` | Launch sub-agent, auto-finish git ops |
 | `/status` | Check progress, blockers, active agents |
 | `/review <id>` | Review sub-agent output against spec |
+
+### Mandatory Slash Command Usage
+
+**ALWAYS use slash commands for orchestration operations.** Never perform these actions manually:
+
+- **Creating specs**: ALWAYS use `/plan`. Never write spec files directly.
+- **Launching sub-agents**: ALWAYS use `/delegate <id>`. Never call the Task tool directly to launch sub-agents.
+- **Reviewing output**: ALWAYS use `/review <id>`. Never manually read diffs and comment.
+- **Checking progress**: ALWAYS use `/status`. Never manually check agent output files.
+
+The slash commands encode the full workflow — branch creation, persona loading, git ops, issue management. Bypassing them skips critical steps and breaks the orchestration contract.
