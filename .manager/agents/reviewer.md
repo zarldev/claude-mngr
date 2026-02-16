@@ -68,24 +68,44 @@ Apply when the diff contains `.go` files.
 - Sentinel errors use `ErrX` format: `ErrNotFound`, `ErrParseValue`
 - Wrap at every failure point with `%w`
 - Log once at boundaries, not at every occurrence
+- Handle errors once — don't log AND return; pick one
 
 **Naming:**
 - Scope-based: smaller scope = shorter names
 - Single-letter receivers (max 2 chars), matching type: `s *Service`, `h *Handler`
 - Enums: `PascalCase` with type prefix, start at `iota + 1`
 - Constants: `camelCase` for simple values
+- Never shadow built-in names (`error`, `string`, `len`, `cap`, `copy`, `new`, `close`)
 
 **Types:**
 - Semantic types for IDs and domain values (`type AssetID = int64`)
 - Pointers only when nil is a valid value
+- No pointer to interface — pass interfaces by value
 - No shared domain package — each layer owns its types
-- No JSON + DB tags on the same struct
+- No JSON + DB tags on the same struct — flag abstraction leaks
+- Marshaled structs must have explicit field tags on every field
 - Return nil for empty slices, check emptiness with `len()`
+- `var s T` for zero-value structs, not `s := T{}`
+- `&T{field: value}` not `new(T)` for struct references
+- Always use field names in struct initialization — no positional
 
 **Interfaces:**
 - Small (ideally 1 method), consumer-side definition
 - Satisfaction checks: `var _ Interface = (*Type)(nil)`
 - Fat interfaces only for transactions
+- No embedding in public structs — use named fields to control API surface
+
+**Safety:**
+- Type assertions must use comma-ok: `v, ok := x.(T)` — flag naked assertions
+- `defer` for all cleanup (files, locks, mutexes) — flag manual cleanup patterns
+- No mutable globals — inject dependencies, no package-level `var` that gets mutated
+- No panics outside truly unrecoverable states
+
+**Concurrency:**
+- Every goroutine must be waitable — `sync.WaitGroup` for groups, `done` channel for singles
+- No fire-and-forget goroutines — flag any `go func()` without lifecycle management
+- Channel buffers: 0 or 1 only — larger needs justification
+- Mutex as unexported field (`mu sync.Mutex`), never embedded
 
 **Testing:**
 - `package_test` (external test package)
@@ -101,6 +121,13 @@ Apply when the diff contains `.go` files.
 - `cmp.Or` for defaults
 - `any` not `interface{}`
 
+**Code hygiene:**
+- Reduce variable scope — declare as close to use as possible
+- Avoid naked bool params — prefer named types or add comment context
+- Remove unnecessary else — if both branches set same variable, use early assign
+- `strconv` over `fmt` for primitive conversions
+- Pre-allocate slices/maps when size is known
+
 **Anti-patterns — flag these:**
 - Embedded mutexes (exposes Lock/Unlock)
 - Fire-and-forget goroutines
@@ -108,6 +135,12 @@ Apply when the diff contains `.go` files.
 - Mockery-generated mocks
 - `init()` functions
 - Exiting outside `main()`
+- Naked type assertions without comma-ok
+- Mutable package-level variables
+- Manual cleanup instead of defer
+- Pointer to interface
+- Positional struct initialization
+- Shadowing built-in names
 
 **Architecture:**
 - Layer separation: repository/service/transport each own their types
@@ -196,6 +229,11 @@ Good:
 - "unused parameter"
 - "missing `var _ Interface = (*Type)(nil)` satisfaction check"
 - "error wrapping uses 'failed to' prefix — use direct context"
+- "naked type assertion on line 42 — use comma-ok"
+- "mutable package var `defaultClient` — inject as dependency"
+- "manual file close — use defer"
+- "positional struct init — use field names"
+- "`error` shadowed as variable name on line 15"
 - "clean"
 
 Bad:

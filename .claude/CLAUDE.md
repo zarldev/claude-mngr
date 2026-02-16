@@ -79,6 +79,8 @@ Copy `settings.local.json` to the worktree (it's gitignored):
 cp <repo>/.claude/settings.local.json <worktree>/.claude/settings.local.json
 ```
 
+Never `git checkout` to a work branch on the main clone. The main checkout must always stay on `main`.
+
 ### .claude/ Write Protection
 Sub-agents cannot write to `.claude/` directories (built-in Claude Code security boundary). If a work item requires `.claude/` changes, the sub-agent writes to `.manager/staging/` instead. The manager copies these during git-ops.
 
