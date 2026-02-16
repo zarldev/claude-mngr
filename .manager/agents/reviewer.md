@@ -69,13 +69,19 @@ Apply when the diff contains `.go` files.
 - Wrap at every failure point with `%w`
 - Log once at boundaries, not at every occurrence
 - Handle errors once — don't log AND return; pick one
+- Error strings: no capitalization, no ending punctuation — `"something bad"` not `"Something bad."`
+- No in-band error values — don't return `-1` or `""` to signal errors; use `(value, ok)` or `(value, error)`
+- Prefer `errors.AsType[T](err)` over `errors.As(err, &target)` (Go 1.26+, type-safe)
 
 **Naming:**
 - Scope-based: smaller scope = shorter names
 - Single-letter receivers (max 2 chars), matching type: `s *Service`, `h *Handler`
 - Enums: `PascalCase` with type prefix, start at `iota + 1`
 - Constants: `camelCase` for simple values
+- Omit "Get" prefix from getters — `Counts()` not `GetCounts()`
+- No repetition with package context — `ads.Report` not `ads.AdsReport`
 - Never shadow built-in names (`error`, `string`, `len`, `cap`, `copy`, `new`, `close`)
+- Flag unintentional variable shadowing — `:=` hiding outer scope variables
 
 **Types:**
 - Semantic types for IDs and domain values (`type AssetID = int64`)
@@ -93,18 +99,24 @@ Apply when the diff contains `.go` files.
 - Small (ideally 1 method), consumer-side definition
 - Satisfaction checks: `var _ Interface = (*Type)(nil)`
 - Fat interfaces only for transactions
+- Return concrete types from functions, not interfaces — let consumers define interfaces
 - No embedding in public structs — use named fields to control API surface
+- No premature generics — start with concrete types, extract when pattern is clear
 
 **Safety:**
 - Type assertions must use comma-ok: `v, ok := x.(T)` — flag naked assertions
 - `defer` for all cleanup (files, locks, mutexes) — flag manual cleanup patterns
 - No mutable globals — inject dependencies, no package-level `var` that gets mutated
 - No panics outside truly unrecoverable states
+- `context.Context` always first parameter — never stored in struct fields
+- `crypto/rand` for security — never `math/rand` for keys, tokens, or secrets
+- Prefer synchronous functions — return results directly, let callers add concurrency
 
 **Concurrency:**
 - Every goroutine must be waitable — `sync.WaitGroup` for groups, `done` channel for singles
 - No fire-and-forget goroutines — flag any `go func()` without lifecycle management
 - Channel buffers: 0 or 1 only — larger needs justification
+- Always specify channel direction in signatures (`chan<-` or `<-chan`)
 - Mutex as unexported field (`mu sync.Mutex`), never embedded
 
 **Testing:**
@@ -113,13 +125,20 @@ Apply when the diff contains `.go` files.
 - `t.Context()` not `context.Background()`
 - Contract tests for multiple implementations
 - Prefer in-memory implementations over mocks
-- `b.Loop()` for benchmarks
+- No assertion libraries — use standard `cmp.Diff`/`cmp.Equal` for struct comparisons
+- `t.Helper()` on all test helpers — failures report at call site
+- No `t.Fatal`/`t.FailNow` from non-test goroutines — use `t.Error` + return
+- `b.Loop()` for benchmarks (no inlining penalty since Go 1.26)
+- Failure messages: `"FuncName(%v) = %v, want %v"` format
 
-**Modern Go (1.23+):**
+**Modern Go (1.23+ / 1.26+):**
 - `range over int` instead of `for i := 0; i < n; i++`
 - `slices`, `maps`, `cmp` packages where applicable
 - `cmp.Or` for defaults
 - `any` not `interface{}`
+- `errors.AsType[T](err)` over `errors.As(err, &target)` (1.26+)
+- `new(expr)` for inline pointer creation in struct fields (1.26+)
+- No dot imports (`import .`) — always qualify package names
 
 **Code hygiene:**
 - Reduce variable scope — declare as close to use as possible
@@ -127,12 +146,13 @@ Apply when the diff contains `.go` files.
 - Remove unnecessary else — if both branches set same variable, use early assign
 - `strconv` over `fmt` for primitive conversions
 - Pre-allocate slices/maps when size is known
+- Comment uncommon patterns — `if err == nil` needs `// if NO error` to signal intent
 
 **Anti-patterns — flag these:**
 - Embedded mutexes (exposes Lock/Unlock)
 - Fire-and-forget goroutines
 - `pkg/` or `internal/` directory structure
-- Mockery-generated mocks
+- Mockery-generated mocks or assertion libraries
 - `init()` functions
 - Exiting outside `main()`
 - Naked type assertions without comma-ok
@@ -140,7 +160,15 @@ Apply when the diff contains `.go` files.
 - Manual cleanup instead of defer
 - Pointer to interface
 - Positional struct initialization
-- Shadowing built-in names
+- Shadowing built-in names or outer scope variables
+- `Get` prefix on getters
+- In-band error values (`-1`, `""`, `nil` without ok)
+- Context in struct fields
+- `math/rand` for security-sensitive values
+- Dot imports (`import .`)
+- `t.Fatal` from spawned goroutines
+- Returning interfaces from functions (return concrete types)
+- Unidirectional channels missing direction in signatures
 
 **Architecture:**
 - Layer separation: repository/service/transport each own their types
@@ -234,6 +262,11 @@ Good:
 - "manual file close — use defer"
 - "positional struct init — use field names"
 - "`error` shadowed as variable name on line 15"
+- "`GetUser` — drop the Get prefix"
+- "`ctx` stored in struct field — pass as first param"
+- "`t.Fatal` in spawned goroutine — use `t.Error` + return"
+- "use `errors.AsType[T]` instead of `errors.As` with pointer"
+- "channel param missing direction — use `<-chan` or `chan<-`"
 - "clean"
 
 Bad:
