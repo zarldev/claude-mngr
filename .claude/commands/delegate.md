@@ -36,6 +36,20 @@ Sub-agents run in the background and **cannot prompt for permissions**. The foll
 
 If these are missing, add them before launching agents. Without them, the sub-agent will be auto-denied and produce nothing.
 
+### .claude/ Write Protection
+
+Sub-agents **cannot write to `.claude/` directories** — this is a built-in Claude Code security boundary. If a work item requires `.claude/` changes, instruct the sub-agent to write staging files to `.manager/staging/` instead. The manager copies them during git-ops:
+
+```bash
+# sub-agent writes to staging:
+#   .manager/staging/commands/delegate.md
+#   .manager/staging/settings.local.json
+
+# manager copies before committing:
+cp -r <worktree>/.manager/staging/commands/* <worktree>/.claude/commands/
+rm -rf <worktree>/.manager/staging/
+```
+
 ## Process
 
 ### If `$ARGUMENTS` is "all"
@@ -126,6 +140,12 @@ git branch work/<id>-<name>
 git worktree add .worktrees/<id>-<name> work/<id>-<name>
 ```
 
+Copy permissions to worktree (settings.local.json is gitignored):
+```bash
+cp ~/src/zarldev/<repo-name>/.claude/settings.local.json \
+   ~/src/zarldev/<repo-name>/.worktrees/<id>-<name>/.claude/settings.local.json
+```
+
 The working directory for the sub-agent is always:
 `~/src/zarldev/<repo-name>/.worktrees/<id>-<name>/`
 
@@ -153,48 +173,73 @@ Task tool call:
     - Do NOT create PRs or comment on GitHub issues
     - Do NOT run gh commands
     - The manager will handle all git operations after you finish
+    - You CANNOT write to `.claude/` directories. If the spec requires
+      `.claude/` changes, write them to `.manager/staging/` instead
+      (e.g., `.manager/staging/commands/foo.md` for `.claude/commands/foo.md`)
     - If you get stuck, write a blocker file using the Write tool to:
       <working-directory>/.manager-blocker.md
     - When done, ensure all tests pass and stop
 ```
 
-#### Step 6: Wait for completion and auto-finish
+#### Step 6: Git operations (commit, push, PR)
 
-When the sub-agent completes (you'll get a task notification), launch a `git-workflow-manager` agent to handle all git operations. This frees you to move on to other work immediately.
+When the sub-agent completes, handle git operations:
+
+```bash
+cd <working-directory>
+
+# If staging files exist, copy them to .claude/
+if [ -d .manager/staging ]; then
+  cp -r .manager/staging/* .claude/
+  rm -rf .manager/staging
+fi
+
+# Stage and commit
+git add -A
+git commit -m "<commit message based on what was built>"
+
+# Push and create PR
+git push -u origin work/<id>-<name>
+gh pr create --repo zarldev/<repo-name> \
+  --title "<id>: <title>" \
+  --body "Closes #<issue-number>
+
+Spec: .manager/specs/<id>-<name>.md" \
+  --base main
+
+# Comment on issue
+gh issue comment <issue-number> --repo zarldev/<repo-name> \
+  --body "PR created: <pr-url>"
+```
+
+Do NOT merge yet — the review agent goes first.
+
+#### Step 7: Review
+
+Launch the review agent to evaluate the PR against the spec and coding standards.
 
 ```
 Task tool call:
-  description: "<id> gitops"
-  subagent_type: "git-workflow-manager"
-  run_in_background: true
+  description: "<id> review"
+  subagent_type: "general-purpose"
   prompt: |
-    Handle the git operations for completed work item <id>-<name>.
+    <load .manager/agents/reviewer.md persona>
 
-    Working directory: <working-directory>
-    Branch: work/<id>-<name>
-    Target repo: zarldev/<repo-name>
-    GitHub issue: #<issue-number>
-    PR title: "<id>: <title>"
+    Review PR #<pr-number> in zarldev/<repo-name>.
+    Spec: .manager/specs/<id>-<name>.md
 
-    Steps:
-    1. cd <working-directory>
-    2. git add -A
-    3. git commit -m "<commit message based on what was built>"
-    4. git push -u origin work/<id>-<name>
-    5. gh pr create --repo zarldev/<repo-name> \
-         --title "<id>: <title>" \
-         --body "Closes #<issue-number>\n\nSpec: .manager/specs/<id>-<name>.md" \
-         --base main
-    6. gh issue comment <issue-number> --repo zarldev/<repo-name> \
-         --body "PR created: <pr-url>"
-    7. gh pr merge <pr-number> --repo zarldev/<repo-name> \
-         --squash --delete-branch
-
-    Do NOT add Co-Authored-By lines to commits.
-    Report the PR URL when done.
+    Read the spec, read the diff, review against standards, comment findings on the PR.
+    Return your verdict: "approve" or "changes-needed".
 ```
 
-#### Step 7: Report
+**If approved** → merge:
+```bash
+gh pr merge <pr-number> --repo zarldev/<repo-name> --squash --delete-branch
+```
+
+**If changes needed** → report findings to user, do NOT merge. Ask if they want to re-delegate with fixes or manually intervene.
+
+#### Step 8: Report
 For each launched agent, report:
 - Work item ID and title
 - Agent role
@@ -202,5 +247,6 @@ For each launched agent, report:
 - Branch name
 - Working directory
 - GitHub issue number
+- Review verdict
 
-Tell the user to run `/status` to monitor progress, or that the PR is ready for `/review <id>`.
+Tell the user to run `/status` to monitor progress.

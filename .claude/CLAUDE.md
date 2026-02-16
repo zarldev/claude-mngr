@@ -31,16 +31,19 @@ Single identity — `zarldev` (Bruno's GitHub account). All operations use the d
 
 ### Review Strategy
 
-CI is the merge gate, not GitHub approvals. The `/review` command does the actual code review (reads diff, checks spec compliance) and comments findings on the PR. If review passes and CI is green, merge directly. No formal GitHub approval required.
+CI is the merge gate, not GitHub approvals. PR review is automated — the `/delegate` pipeline launches a review agent (`.manager/agents/reviewer.md`) after creating the PR. The reviewer reads the diff, checks spec compliance and coding standards, comments findings, and returns a verdict. If approved and CI is green, merge. If changes needed, report back without merging.
+
+`/review <id>` is available as a manual override for re-reviewing after changes.
 
 ## Directory Structure
 
 ```
 .claude/commands/     # slash commands (manager operations)
 .manager/
-  agents/             # sub-agent persona files (backend, frontend, proto, testing)
+  agents/             # sub-agent persona files (backend, frontend, proto, testing, reviewer)
   specs/              # work item specifications (created by /plan)
   blockers/           # blocker reports (written by stuck sub-agents)
+  staging/            # temp: .claude/ files staged by sub-agents (copied during git-ops)
 ```
 
 ## Conventions
@@ -53,17 +56,31 @@ Sub-agents are launched via the Task tool (`subagent_type: "general-purpose"`, `
 
 ### Git Operations
 The manager handles all git operations after a sub-agent completes:
-1. `git add` + `git commit`
-2. `git push`
-3. `gh pr create`
-4. `gh issue comment` (review findings)
-5. `gh pr merge --squash --delete-branch`
+1. Copy staging files (`.manager/staging/` → `.claude/`) if present
+2. `git add` + `git commit`
+3. `git push`
+4. `gh pr create`
+5. Review agent evaluates diff against spec and standards
+6. `gh pr merge --squash --delete-branch` (only if review approved)
 
 ### Blockers
 If a sub-agent gets stuck, it writes a blocker file to `.manager/blockers/<id>-<name>.md` using the Write tool. The manager picks these up via `/status`.
 
-### Branches
-Sub-agents work on branches named `work/<id>-<name>`. For parallel agents on the same repo, worktrees are used within the clone at `~/src/zarldev/<repo>/`.
+### Branches and Worktrees
+Sub-agents work on branches named `work/<id>-<name>`. **ALWAYS use git worktrees** — never switch branches on the main checkout. This keeps the main checkout on `main` and avoids dirty-state issues.
+
+```bash
+git branch work/<id>-<name>
+git worktree add .worktrees/<id>-<name> work/<id>-<name>
+```
+
+Copy `settings.local.json` to the worktree (it's gitignored):
+```bash
+cp <repo>/.claude/settings.local.json <worktree>/.claude/settings.local.json
+```
+
+### .claude/ Write Protection
+Sub-agents cannot write to `.claude/` directories (built-in Claude Code security boundary). If a work item requires `.claude/` changes, the sub-agent writes to `.manager/staging/` instead. The manager copies these during git-ops.
 
 ### No Co-Authored-By
 Commits never include co-authored-by lines.
@@ -74,9 +91,9 @@ Commits never include co-authored-by lines.
 |---------|---------|
 | `/discuss <topic>` | Gather requirements, explore edge cases |
 | `/plan` | Decompose work into specs and GH issues |
-| `/delegate <id>` | Launch sub-agent, auto-finish git ops |
+| `/delegate <id>` | Launch sub-agent, auto-review, git ops |
 | `/status` | Check progress, blockers, active agents |
-| `/review <id>` | Review sub-agent output against spec |
+| `/review <id>` | Manual re-review of sub-agent output |
 
 ### Mandatory Slash Command Usage
 
