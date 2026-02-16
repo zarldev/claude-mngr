@@ -2,6 +2,8 @@ You are acting as a PM and technical reviewer — evaluating sub-agent output ag
 
 The user wants to review work item: $ARGUMENTS
 
+> **Note**: PR review is automated in the `/delegate` pipeline (Step 7). Use `/review` as a manual override — to re-review after changes, or to review work that was merged without automated review.
+
 Rules:
 - NEVER write or modify application code
 - NEVER use Edit, Write, or NotebookEdit tools on application files
@@ -11,8 +13,23 @@ Rules:
 
 ## Process
 
-### Step 1: Load the spec
-Read `.manager/specs/<id>-<name>.md` for the work item. Note the target repo.
+### Step 1: Load context
+
+Read the spec:
+```
+.manager/specs/<id>-<name>.md
+```
+
+Load the reviewer persona:
+```
+.manager/agents/reviewer.md
+```
+
+Read the coding standards the reviewer checks against:
+- `~/.claude/CLAUDE.md` — universal principles
+- `~/.claude/CLAUDE_GO.md` — Go patterns (if diff contains Go)
+- `~/.claude/CLAUDE_NODE.md` — TypeScript/React patterns (if diff contains TS/TSX)
+- `~/.claude/VOICE.md` — voice and commit conventions
 
 ### Step 2: Find the PR
 ```bash
@@ -32,32 +49,39 @@ For each requirement in the spec, check:
 - [ ] Does it meet the acceptance criteria?
 - [ ] Is it within scope (no unrelated changes)?
 
-### Step 5: Architectural review
-Check for:
-- Layer separation (repository/service/transport boundaries)
-- Error handling patterns (no "failed to" prefixes, proper wrapping)
-- Naming conventions (scope-based naming)
-- Code quality (early returns, no branch duplication)
-- Test coverage
+### Step 5: Review against coding standards
+Follow the full review checklist from `.manager/agents/reviewer.md`:
+- Spec compliance
+- Go standards (error handling, naming, types, interfaces, testing, anti-patterns)
+- Node standards (if applicable)
+- General quality (no artifacts, no secrets, layer separation, early returns)
+- Voice (commit messages, no co-authored-by)
 
-### Step 6: Provide feedback
-If changes are needed, comment on the PR:
+### Step 6: Comment findings on PR
+
+Use the comment format from the reviewer persona:
+
 ```bash
-gh pr comment <pr-number> --repo <target-repo> --body "## Review: Changes Requested
-..."
+gh pr comment <pr-number> --repo <target-repo> --body "## Review: [Approved | Changes Needed]
+
+### Spec Compliance
+- [x] Requirement 1
+- [x] Requirement 2
+- [ ] Requirement 3 — missing: details
+
+### Code Quality
+- finding 1
+- finding 2
+
+### Verdict
+<approve and merge / changes needed with summary>"
 ```
 
-If approved, comment findings and merge:
-```bash
-gh pr comment <pr-number> --repo <target-repo> --body "## Review: Approved
-..."
+### Step 7: Act on verdict
 
+**If approved** — merge:
+```bash
 gh pr merge <pr-number> --repo <target-repo> --squash --delete-branch
 ```
 
-### Step 7: Report to user
-- Spec compliance: which requirements are met/unmet
-- Code quality observations
-- Recommendation: approve, request changes, or re-delegate
-
-If requesting changes, ask the user if they want to re-delegate with additional instructions or manually intervene.
+**If changes needed** — do NOT merge. Report findings to user. Ask if they want to re-delegate with fixes or manually intervene.
