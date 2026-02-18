@@ -261,10 +261,25 @@ gh issue comment <issue-number> --repo <target-repo> \
   --body "PR created: <pr-url>"
 ```
 
-#### Step 4e: Update manifest
+#### Step 4e: Wait for CI
+Poll CI status on the PR before launching the reviewer:
+```bash
+gh pr checks <pr-number> --repo <target-repo> --watch
+```
+
+If CI fails:
+- Update manifest: status → `blocked`, note "CI failed"
+- Log: CI failed on PR #<number>
+- Do NOT launch reviewer — continue with other items
+
+If CI passes (or no CI is configured — i.e. no checks reported):
+- Log: CI green (or no CI configured)
+- Continue to reviewer
+
+#### Step 4f: Update manifest
 - Status → `in-review`
 
-#### Step 4f: Launch reviewer (foreground)
+#### Step 4g: Launch reviewer (foreground)
 
 The reviewer runs in the **foreground** (NOT background) so the overseer can process the verdict immediately.
 
@@ -287,7 +302,7 @@ Task tool call:
 
 Note: do NOT set `run_in_background: true` for the reviewer. It must run in the foreground so you can read the verdict from its output.
 
-#### Step 4g: Process review verdict
+#### Step 4h: Process review verdict
 
 Read the reviewer's output. Look for `VERDICT: approve` or `VERDICT: changes-needed`.
 
