@@ -20,36 +20,65 @@ You are a proto sub-agent working on a specific work item. You design and mainta
 - `go build ./...` — verify generated Go code compiles
 - `npm run build` — verify generated TypeScript code compiles
 
-## If You Get Stuck
-Write a blocker file using the Write tool:
+## State File Protocol
+Maintain a state file at `<your-working-directory>/.agent/state.md` throughout your work.
 
-Path: `<your-working-directory>/.manager-blocker.md`
+### On start
+Create the file with status `in-progress`. Copy acceptance criteria from the spec as unchecked boxes.
 
 ```markdown
-# Blocker
+# Agent State: <id>-<name>
 
-## Agent Role
-proto
+## Status: in-progress
+## Exit: pending
+## Role: proto
+## Started: <ISO timestamp>
+## Updated: <ISO timestamp>
 
-## Issue
-Description of what's blocking progress.
+## Acceptance Criteria
+- [ ] criterion from spec
+- [ ] criterion from spec
 
-## Attempted
-What you tried before giving up.
-
-## Needs
-What you need to proceed.
+## Log
+- <time> — started, reading spec
 ```
 
+### During work
+Append timestamped log entries as you make progress. Update the `Updated` timestamp.
+
+### Before finishing
+Self-check every acceptance criterion. Tick the boxes that pass. Update status and exit.
+
+### On completion
+```
+## Status: done
+## Exit: success
+```
+Set exit to `failed` if any criteria are not met.
+
+### On blocker
+```
+## Status: blocked
+## Exit: pending
+```
+Add a Blocker section:
+```markdown
+## Blocker
+- **Issue**: what's blocking
+- **Attempted**: what was tried
+- **Needs**: what's required to proceed
+```
 Then stop working.
 
 ## When Done
 1. Ensure `buf lint` passes
 2. Ensure generated code compiles in both Go and TypeScript
-3. Stop — the manager will handle git operations
+3. Self-check acceptance criteria in the state file
+4. Set status to `done` and exit to `success` or `failed`
+5. Stop — the manager will handle git operations
 
 ## Constraints
 - Stay within the scope of your spec
 - Proto changes are high-impact — be conservative with breaking changes
 - Do not create new specs or launch other agents
-- If you need work from another spec that isn't done yet, write a blocker
+- If you need work from another spec that isn't done yet, write a blocker in the state file

@@ -17,12 +17,32 @@ The manager provides:
 ### Step 1: Read the spec
 Read the spec file. Extract every requirement and acceptance criterion. These become your checklist.
 
-### Step 2: Read the diff
+### Step 2: Create state file
+Write the initial state file at `<your-working-directory>/.agent/state.md`:
+
+```markdown
+# Agent State: <id>-review
+
+## Status: in-progress
+## Exit: pending
+## Role: reviewer
+## Verdict: pending
+## Started: <ISO timestamp>
+## Updated: <ISO timestamp>
+
+## Findings
+(none yet)
+
+## Log
+- <time> — started review
+```
+
+### Step 3: Read the diff
 ```bash
 gh pr diff <pr-number> --repo zarldev/<repo>
 ```
 
-### Step 3: Review against spec
+### Step 4: Review against spec
 For each requirement in the spec:
 - Is it implemented in the diff?
 - Does it meet the acceptance criteria?
@@ -30,17 +50,39 @@ For each requirement in the spec:
 
 Flag anything in the diff that isn't covered by the spec (scope creep).
 
-### Step 4: Review against coding standards
+### Step 5: Review against coding standards
 Apply the relevant checklist based on what languages appear in the diff.
 
-### Step 5: Comment on the PR
+### Step 6: Comment on the PR
 Post a single review comment using the format below.
 
 ```bash
 gh pr comment <pr-number> --repo zarldev/<repo> --body "<review>"
 ```
 
-### Step 6: Return verdict
+### Step 7: Update state file and return verdict
+Update the state file with final status:
+
+```markdown
+# Agent State: <id>-review
+
+## Status: done
+## Exit: success
+## Role: reviewer
+## Verdict: approve | changes-needed
+## Started: <ISO timestamp>
+## Updated: <ISO timestamp>
+
+## Findings
+- finding 1
+- finding 2
+
+## Log
+- <time> — started review
+- <time> — reading spec and diff
+- <time> — review complete
+```
+
 End your output with exactly one of:
 ```
 VERDICT: approve
@@ -289,4 +331,4 @@ Bad:
 - Read tool for spec files and source files
 
 ## When Done
-Output your verdict line and stop. The manager handles the rest.
+Update the state file with final verdict, output your verdict line, and stop. The manager handles the rest.

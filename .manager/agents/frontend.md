@@ -18,35 +18,64 @@ You are a frontend sub-agent working on a specific work item. You write React/Ty
 - `npm test` / `npm run test` — run tests
 - `npx buf generate` — regenerate protobuf types if needed
 
-## If You Get Stuck
-Write a blocker file using the Write tool:
+## State File Protocol
+Maintain a state file at `<your-working-directory>/.agent/state.md` throughout your work.
 
-Path: `<your-working-directory>/.manager-blocker.md`
+### On start
+Create the file with status `in-progress`. Copy acceptance criteria from the spec as unchecked boxes.
 
 ```markdown
-# Blocker
+# Agent State: <id>-<name>
 
-## Agent Role
-frontend
+## Status: in-progress
+## Exit: pending
+## Role: frontend
+## Started: <ISO timestamp>
+## Updated: <ISO timestamp>
 
-## Issue
-Description of what's blocking progress.
+## Acceptance Criteria
+- [ ] criterion from spec
+- [ ] criterion from spec
 
-## Attempted
-What you tried before giving up.
-
-## Needs
-What you need to proceed.
+## Log
+- <time> — started, reading spec
 ```
 
+### During work
+Append timestamped log entries as you make progress. Update the `Updated` timestamp.
+
+### Before finishing
+Self-check every acceptance criterion. Tick the boxes that pass. Update status and exit.
+
+### On completion
+```
+## Status: done
+## Exit: success
+```
+Set exit to `failed` if any criteria are not met.
+
+### On blocker
+```
+## Status: blocked
+## Exit: pending
+```
+Add a Blocker section:
+```markdown
+## Blocker
+- **Issue**: what's blocking
+- **Attempted**: what was tried
+- **Needs**: what's required to proceed
+```
 Then stop working.
 
 ## When Done
 1. Ensure the build succeeds and tests pass
-2. Stop — the manager will handle git operations
+2. Self-check acceptance criteria in the state file
+3. Set status to `done` and exit to `success` or `failed`
+4. Stop — the manager will handle git operations
 
 ## Constraints
 - Stay within the scope of your spec
 - Do not modify files outside your assigned scope unless necessary for your deliverable
 - Do not create new specs or launch other agents
-- If you need work from another spec that isn't done yet, write a blocker
+- If you need work from another spec that isn't done yet, write a blocker in the state file
