@@ -7,7 +7,24 @@ You are a MANAGER. You do NOT write application code. Ever.
 - **NEVER** write, edit, or modify application source files yourself
 - You ONLY: read pipeline state, launch agents, handle git ops, run reviews, merge or retry
 - Do NOT add `Co-Authored-By` lines to commits
-- All GitHub ops use bare `gh` (default zarldev auth)
+- All GitHub ops use bare `gh` (default auth)
+
+## Path Derivation
+
+All paths are derived from each spec's `Target Repo` field (e.g. `zarlcorp/zvault`).
+
+**Detect if the target repo is the manager's own repo:**
+```bash
+MANAGER_REPO=$(git remote get-url origin | sed 's|.*github.com[:/]||;s|\.git$||')
+TARGET_REPO="<value from spec's Target Repo field>"
+TARGET_ORG=$(echo "$TARGET_REPO" | cut -d/ -f1)
+TARGET_NAME=$(echo "$TARGET_REPO" | cut -d/ -f2)
+```
+
+**Compute workspace paths:**
+- If `TARGET_REPO` equals `MANAGER_REPO`: the main checkout is the current working directory (the manager repo root)
+- Otherwise: the main checkout is `~/src/<TARGET_REPO>/` (e.g. `~/src/zarlcorp/zvault/`)
+- Worktrees always go to `<main-checkout>/.worktrees/<id>-<name>/`
 
 ## Pipeline Log
 
@@ -75,37 +92,32 @@ For each ready item, perform these steps. Launch all independent items in parall
 #### Step 2a: Read the spec
 Read `.manager/specs/<id>-<name>.md` to get:
 - Agent role
-- Target repo (`zarldev/<repo>`)
+- Target repo (e.g. `zarlcorp/zvault`)
 - Requirements and acceptance criteria
 - GitHub issue number (check via `gh issue list --repo <target-repo> --search "<id>:"`)
 
+Parse the `Target Repo` field and derive paths using the Path Derivation logic above.
+
 #### Step 2b: Setup the target repo
 
-Determine the target repo from the spec's `Target Repo` field.
-
-**Special case — if target repo is `zarldev/claude-mngr`:**
-- The main checkout is at `~/src/claude-mngr/`
-- Worktrees go to `~/src/claude-mngr/.worktrees/<id>-<name>/`
-
-**For all other repos:**
-- The main checkout is at `~/src/zarldev/<repo>/`
-- Worktrees go to `~/src/zarldev/<repo>/.worktrees/<id>-<name>/`
+Determine the target repo from the spec's `Target Repo` field and compute `REPO_ROOT` using the Path Derivation logic.
 
 **If the repo doesn't exist on GitHub:**
 ```bash
-gh repo create zarldev/<repo-name> --public --description "<description>"
+gh repo create $TARGET_REPO --public --description "<description>"
 ```
 Then scaffold with CI workflow (same as delegate.md Step 2).
 
 **If the repo exists but isn't cloned locally:**
 ```bash
-cd ~/src/zarldev
-git clone https://github.com/zarldev/<repo-name>.git
+mkdir -p ~/src/$TARGET_ORG
+cd ~/src/$TARGET_ORG
+git clone https://github.com/$TARGET_REPO.git
 ```
 
 **If already cloned:**
 ```bash
-cd <repo-root>
+cd $REPO_ROOT
 git checkout main
 git pull
 ```
@@ -113,7 +125,7 @@ git pull
 #### Step 2c: Create worktree
 
 ```bash
-cd <repo-root>
+cd $REPO_ROOT
 git checkout main
 git pull
 git branch work/<id>-<name>
@@ -122,20 +134,20 @@ git worktree add .worktrees/<id>-<name> work/<id>-<name>
 
 Copy permissions to worktree (settings.local.json is gitignored):
 ```bash
-mkdir -p <repo-root>/.worktrees/<id>-<name>/.claude
-cp <repo-root>/.claude/settings.local.json \
-   <repo-root>/.worktrees/<id>-<name>/.claude/settings.local.json
+mkdir -p $REPO_ROOT/.worktrees/<id>-<name>/.claude
+cp $REPO_ROOT/.claude/settings.local.json \
+   $REPO_ROOT/.worktrees/<id>-<name>/.claude/settings.local.json
 ```
 
 #### Step 2d: Comment on GitHub issue
 ```bash
-gh issue comment <issue-number> --repo <target-repo> \
+gh issue comment <issue-number> --repo $TARGET_REPO \
   --body "Sub-agent launched by /run. Role: <role>. Branch: work/<id>-<name>. Attempt: <attempt>/3"
 ```
 
 #### Step 2e: Launch the sub-agent
 
-Load the appropriate persona from `.manager/agents/<role>.md`.
+Load the appropriate persona from `~/.claude/agents/<role>.md`.
 
 **For fresh launches (status was `queued`):**
 
@@ -244,7 +256,7 @@ Log: git ops complete with commit hash.
 
 #### Step 4c: Create PR
 ```bash
-gh pr create --repo <target-repo> \
+gh pr create --repo $TARGET_REPO \
   --title "<id>: <title from spec>" \
   --body "Closes #<issue-number>
 
@@ -257,14 +269,14 @@ Log: PR created with number.
 
 #### Step 4d: Comment on issue
 ```bash
-gh issue comment <issue-number> --repo <target-repo> \
+gh issue comment <issue-number> --repo $TARGET_REPO \
   --body "PR created: <pr-url>"
 ```
 
 #### Step 4e: Wait for CI
 Poll CI status on the PR before launching the reviewer:
 ```bash
-gh pr checks <pr-number> --repo <target-repo> --watch
+gh pr checks <pr-number> --repo $TARGET_REPO --watch
 ```
 
 If CI fails:
@@ -283,7 +295,7 @@ If CI passes (or no CI is configured — i.e. no checks reported):
 
 The reviewer runs in the **foreground** (NOT background) so the overseer can process the verdict immediately.
 
-Read the reviewer persona from `.manager/agents/reviewer.md`.
+Read the reviewer persona from `~/.claude/agents/reviewer.md`.
 
 ```
 Task tool call:
@@ -292,9 +304,9 @@ Task tool call:
   prompt: |
     <paste full reviewer.md persona content here>
 
-    Review PR #<pr-number> in <target-repo>.
+    Review PR #<pr-number> in $TARGET_REPO.
     Spec path: .manager/specs/<id>-<name>.md
-    Target repo: <target-repo>
+    Target repo: $TARGET_REPO
 
     Read the spec, read the diff, review against standards, comment findings on the PR.
     Return your verdict: "approve" or "changes-needed".
@@ -309,7 +321,7 @@ Read the reviewer's output. Look for `VERDICT: approve` or `VERDICT: changes-nee
 **If `VERDICT: approve`:**
 1. Merge the PR:
    ```bash
-   gh pr merge <pr-number> --repo <target-repo> --squash --delete-branch
+   gh pr merge <pr-number> --repo $TARGET_REPO --squash --delete-branch
    ```
 2. Update manifest: status → `merged`
 3. Log: review approved, merged
@@ -322,7 +334,7 @@ Read the reviewer's output. Look for `VERDICT: approve` or `VERDICT: changes-nee
    - Save the reviewer's findings (from the PR comment or reviewer output) for the retry prompt
    - Close the PR without merging:
      ```bash
-     gh pr close <pr-number> --repo <target-repo>
+     gh pr close <pr-number> --repo $TARGET_REPO
      ```
    - Update manifest: status → `retry`
    - Log: changes needed, scheduling retry (attempt N/3)
@@ -353,11 +365,21 @@ When no items remain `queued`, `in-progress`, `in-review`, or `retry`:
 
 ## Edge Cases
 
-### Target repo is claude-mngr itself
-When a spec's `Target Repo` is `zarldev/claude-mngr`:
-- Main checkout: `~/src/claude-mngr/`
-- Worktrees: `~/src/claude-mngr/.worktrees/<id>-<name>/`
-- PR target repo flag: `--repo zarldev/claude-mngr`
+### Target repo is the manager's own repo
+When a spec's `Target Repo` matches the manager's git remote:
+- Main checkout: the manager repo root (current working directory)
+- Worktrees: `<manager-root>/.worktrees/<id>-<name>/`
+- PR target repo flag: `--repo $TARGET_REPO`
+
+Detection:
+```bash
+MANAGER_REPO=$(git remote get-url origin | sed 's|.*github.com[:/]||;s|\.git$||')
+if [ "$TARGET_REPO" = "$MANAGER_REPO" ]; then
+  REPO_ROOT="$(git rev-parse --show-toplevel)"
+else
+  REPO_ROOT="$HOME/src/$TARGET_REPO"
+fi
+```
 
 ### All items blocked
 If the pipeline reaches a state where all remaining items are `blocked` with no `queued`, `in-progress`, or `retry` items: complete the pipeline and report. Do not loop forever.

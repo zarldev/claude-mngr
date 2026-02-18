@@ -3,7 +3,20 @@ You are acting as a PM — monitoring the progress of a pipeline or delegated wo
 Rules:
 - NEVER write application code
 - You MAY run git commands and `gh` commands to check status
-- All GitHub ops use bare `gh` (default zarldev auth)
+- All GitHub ops use bare `gh` (default auth)
+
+## Path Derivation
+
+All paths are derived from each spec's `Target Repo` field.
+
+**Detect the manager's own repo:**
+```bash
+MANAGER_REPO=$(git remote get-url origin | sed 's|.*github.com[:/]||;s|\.git$||')
+```
+
+**Compute repo root for a target repo:**
+- If `TARGET_REPO` equals `MANAGER_REPO`: use `$(git rev-parse --show-toplevel)`
+- Otherwise: use `~/src/<TARGET_REPO>/`
 
 ## Detection
 
@@ -179,11 +192,16 @@ Fall back to this behavior when no `.manager/pipeline.md` exists. This covers ad
 ### Step 1: Check for blockers
 Look for blocker files in two places:
 1. `.manager/blockers/` in this repo
-2. `.manager-blocker.md` in any active working directory under `~/src/zarldev/*/`
+2. `.manager-blocker.md` in any active worktree in the current project
+
+Detect the project root:
+```bash
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+```
 
 ```bash
 ls .manager/blockers/*.md 2>/dev/null
-find ~/src/zarldev -maxdepth 2 -name ".manager-blocker.md" 2>/dev/null
+find $PROJECT_ROOT/.worktrees -maxdepth 2 -name ".manager-blocker.md" 2>/dev/null
 ```
 
 For each blocker found, read it and report:
@@ -195,26 +213,37 @@ For each blocker found, read it and report:
 Scan worktrees for active agent state files:
 
 ```bash
-find ~/src/zarldev -path "*/.worktrees/*/.agent/state.md" 2>/dev/null
+find $PROJECT_ROOT/.worktrees -path "*/.agent/state.md" 2>/dev/null
 ```
 
 For each state file found, read it and report the agent's status, criteria progress, and last log entry.
 
 ### Step 3: Check GitHub issues
-Check issues across zarldev repos and this repo:
+Detect the current repo from git remote:
+```bash
+CURRENT_REPO=$(git remote get-url origin | sed 's|.*github.com[:/]||;s|\.git$||')
+CURRENT_ORG=$(echo "$CURRENT_REPO" | cut -d/ -f1)
+```
+
+Check issues:
 ```bash
 gh issue list --state all
-gh search issues --owner zarldev --state open
+gh search issues --owner $CURRENT_ORG --state open
 ```
 
 Report the state of each work item's issue (open/closed).
 
 ### Step 4: Check working directories
-For each repo in `~/src/zarldev/*/`:
+Scan worktrees in the current project for activity:
 ```bash
-git -C ~/src/zarldev/<repo> log --oneline -5
-git -C ~/src/zarldev/<repo> status --short
-git -C ~/src/zarldev/<repo> branch --list "work/*"
+PROJECT_ROOT=$(git rev-parse --show-toplevel)
+```
+
+For each worktree in `$PROJECT_ROOT/.worktrees/*/`:
+```bash
+git -C <worktree> log --oneline -5
+git -C <worktree> status --short
+git -C <worktree> branch --show-current
 ```
 
 Report:
@@ -224,7 +253,8 @@ Report:
 
 ### Step 5: Check for PRs
 ```bash
-gh search prs --owner zarldev --state open
+CURRENT_ORG=$(echo "$CURRENT_REPO" | cut -d/ -f1)
+gh search prs --owner $CURRENT_ORG --state open
 gh pr list --state all
 ```
 
@@ -234,9 +264,9 @@ Report which items have PRs ready for review.
 
 | ID | Title | Repo | Status | PR | Blockers |
 |----|-------|------|--------|----|----------|
-| 001 | ... | zarldev/tsk | in progress | — | — |
-| 002 | ... | zarldev/tsk | blocked | — | needs X |
-| 003 | ... | zarldev/other | PR ready | #5 | — |
+| 001 | ... | <target-repo> | in progress | — | — |
+| 002 | ... | <target-repo> | blocked | — | needs X |
+| 003 | ... | <target-repo> | PR ready | #5 | — |
 
 ### Step 7: Suggestions
 - If blockers exist, suggest resolution actions

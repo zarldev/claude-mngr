@@ -68,7 +68,7 @@ Each criterion must be specific, verifiable, and self-contained. Sub-agents chec
 - 5-15 criteria per spec (fewer = underspecified, more = too granular)
 
 ## Target Repo
-zarldev/<repo-name>
+<org>/<repo-name>
 
 ## Agent Role
 backend | frontend | proto | testing
@@ -81,10 +81,15 @@ backend | frontend | proto | testing
 Any additional context from the discussion.
 ```
 
-Note: The `Target Repo` field tells `/delegate` which repo to create/clone. Use `zarldev/<name>` for all projects.
+Note: The `Target Repo` field tells `/delegate` which repo to create/clone. Use `<org>/<repo-name>` format (e.g. `zarlcorp/zvault`). The org and repo name are derived from this field to compute workspace paths, GitHub operations, and worktree locations.
 
 ### Step 4: Create GitHub issues
-Issues are created on the **target repo**. If the repo doesn't exist yet, create the issue on `zarldev/claude-mngr` as a tracking issue.
+Issues are created on the **target repo**. If the repo doesn't exist yet, create the issue on the current manager repo as a tracking issue.
+
+Detect the current manager repo from git remote:
+```bash
+git remote get-url origin | sed 's|.*github.com[:/]||;s|\.git$||'
+```
 
 For each item, run:
 ```bash
@@ -99,7 +104,7 @@ gh label create proto --repo <target-repo> --color D93F0B --description "Protobu
 gh label create testing --repo <target-repo> --color FBCA04 --description "Testing work"
 ```
 
-If the target repo doesn't exist yet, that's fine — `/delegate` will create it. Create the issue on `zarldev/claude-mngr` instead and note the target repo in the body.
+If the target repo doesn't exist yet, that's fine — `/delegate` will create it. Create the issue on the current manager repo instead and note the target repo in the body.
 
 ### Step 5: Generate pipeline manifest
 
