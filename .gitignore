@@ -1,1 +1,4 @@
 .worktrees/
+.agent/
+.manager/pipeline.md
+.manager/pipeline-log.md

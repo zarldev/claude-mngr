@@ -1,62 +1,53 @@
-# claude-mngr — Manager/Sub-Agent Orchestration Hub
+# claude-mngr — Global Orchestration System
 
-This repository is the orchestration layer for a two-tier agent system. It contains no application code — only manager configuration, slash commands, agent personas, and work item specs.
+This repository is the source of truth for a two-tier agent orchestration system. It contains slash commands, agent personas, and the install script that deploys them globally to `~/.claude/`. No application code lives here.
 
 ## Architecture
 
 - **Manager** (interactive) decomposes work via slash commands, delegates to sub-agents, reviews output, and handles all git operations.
 - **Sub-agents** (headless) write code and run tests. They do NOT handle git ops — the manager does that.
 
-### Repo Separation
+### Global Deployment
 
-| Repo | Purpose |
-|------|---------|
-| `zarldev/claude-mngr` | Orchestration hub (this repo) |
-| `zarldev/<project>` | Application code (e.g. `zarldev/tsk`) |
-
-### Workspaces
-
-| Path | Purpose |
-|------|---------|
-| `~/src/claude-mngr/` | Manager repo (orchestration) |
-| `~/src/zarldev/<repo>/` | Sub-agent working directories |
+Commands and agent personas are deployed to `~/.claude/` via `install.sh`, making them available in any project. The system is org-agnostic — all paths are derived from each spec's `Target Repo` field at runtime.
 
 ### Identity
 
-Single identity — `zarldev` (Bruno's GitHub account). All operations use the default `gh` auth.
+Single GitHub identity. All operations use the default `gh` auth.
 
-- **Git author**: default git config (Bruno's identity)
+- **Git author**: default git config
 - **All GitHub ops**: bare `gh` (no token overrides needed)
 - No bot accounts, no PATs, no token env vars
 
 ### Review Strategy
 
-CI is the merge gate, not GitHub approvals. PR review is automated — the `/delegate` pipeline launches a review agent (`.manager/agents/reviewer.md`) after creating the PR. The reviewer reads the diff, checks spec compliance and coding standards, comments findings, and returns a verdict. If approved and CI is green, merge. If changes needed, report back without merging.
+CI is the merge gate, not GitHub approvals. PR review is automated — the `/delegate` pipeline launches a review agent (`~/.claude/agents/reviewer.md`) after creating the PR. The reviewer reads the diff, checks spec compliance and coding standards, comments findings, and returns a verdict. If approved and CI is green, merge. If changes needed, report back without merging.
 
 `/review <id>` is available as a manual override for re-reviewing after changes.
 
 ## Directory Structure
 
 ```
-.claude/commands/     # slash commands (manager operations)
+.claude/commands/     # slash commands (deployed to ~/.claude/commands/ by install.sh)
 .manager/
-  agents/             # sub-agent persona files (backend, frontend, proto, testing, reviewer)
-  specs/              # work item specifications (created by /plan)
+  agents/             # agent personas (deployed to ~/.claude/agents/ by install.sh)
+  specs/              # reserved for temp specs during pipeline runs
   blockers/           # blocker reports (written by stuck sub-agents)
   staging/            # temp: .claude/ files staged by sub-agents (copied during git-ops)
+install.sh            # deploys commands and agents to ~/.claude/
 ```
 
 ## Conventions
 
 ### Specs
-Work items live in `.manager/specs/<id>-<name>.md`. The spec is the contract — sub-agents must deliver exactly what the spec describes, nothing more. Each spec includes a `Target Repo` field indicating which zarldev repo the work targets.
+Work item specs live in individual project repos, not here. Each spec includes a `Target Repo` field — the orchestration system derives all paths from this field, making commands org-agnostic.
 
 ### Sub-Agent Launching
 Sub-agents are launched via the Task tool (`subagent_type: "general-purpose"`, `run_in_background: true`). They cannot nest `claude` CLI sessions. Sub-agents only write code and run tests — they do NOT run git commands, create PRs, or comment on issues.
 
 ### Git Operations
 The manager handles all git operations after a sub-agent completes:
-1. Copy staging files (`.manager/staging/` → `.claude/`) if present
+1. Copy staging files (`.manager/staging/` -> `.claude/`) if present
 2. `git add` + `git commit`
 3. `git push`
 4. `gh pr create`
@@ -94,6 +85,7 @@ Commits never include co-authored-by lines.
 | `/discuss <topic>` | Gather requirements, explore edge cases |
 | `/plan` | Decompose work into specs and GH issues |
 | `/delegate <id>` | Launch sub-agent, auto-review, git ops |
+| `/run` | Autonomous pipeline — launch waves, review, merge |
 | `/status` | Check progress, blockers, active agents |
 | `/review <id>` | Manual re-review of sub-agent output |
 
@@ -102,7 +94,7 @@ Commits never include co-authored-by lines.
 **ALWAYS use slash commands for orchestration operations.** Never perform these actions manually:
 
 - **Creating specs**: ALWAYS use `/plan`. Never write spec files directly.
-- **Launching sub-agents**: ALWAYS use `/delegate <id>`. Never call the Task tool directly to launch sub-agents.
+- **Launching sub-agents**: ALWAYS use `/delegate <id>` or `/run`. Never call the Task tool directly to launch sub-agents.
 - **Reviewing output**: ALWAYS use `/review <id>`. Never manually read diffs and comment.
 - **Checking progress**: ALWAYS use `/status`. Never manually check agent output files.
 
