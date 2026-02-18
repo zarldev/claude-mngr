@@ -9,7 +9,7 @@ Rules:
 - NEVER use Edit, Write, or NotebookEdit tools on application files
 - You MAY comment on GitHub PRs and issues via `gh`
 - You MAY read any file to understand the changes
-- All GitHub ops use bare `gh` (default zarldev auth)
+- All GitHub ops use bare `gh` (default auth)
 
 ## Process
 
@@ -22,7 +22,7 @@ Read the spec:
 
 Load the reviewer persona:
 ```
-.manager/agents/reviewer.md
+~/.claude/agents/reviewer.md
 ```
 
 Read the coding standards the reviewer checks against:
@@ -32,6 +32,9 @@ Read the coding standards the reviewer checks against:
 - `~/.claude/VOICE.md` — voice and commit conventions
 
 ### Step 2: Find the PR
+
+Determine the target repo from the spec's `Target Repo` field.
+
 ```bash
 gh pr list --repo <target-repo> --head work/<id>-<name>
 ```
@@ -50,7 +53,7 @@ For each requirement in the spec, check:
 - [ ] Is it within scope (no unrelated changes)?
 
 ### Step 5: Review against coding standards
-Follow the full review checklist from `.manager/agents/reviewer.md`:
+Follow the full review checklist from `~/.claude/agents/reviewer.md`:
 - Spec compliance
 - Go standards (error handling, naming, types, interfaces, testing, anti-patterns)
 - Node standards (if applicable)

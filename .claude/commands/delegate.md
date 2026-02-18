@@ -22,16 +22,31 @@ You are a MANAGER. You do NOT write application code. Ever.
 
 Rules:
 - You handle ALL git operations (commit, push, PR) — sub-agents do NOT
-- All GitHub ops use bare `gh` (default zarldev auth)
+- All GitHub ops use bare `gh` (default auth)
 - Use the Task tool to launch sub-agents (NOT `claude -p` which can't nest)
+
+## Path Derivation
+
+All paths are derived from the spec's `Target Repo` field (e.g. `zarlcorp/zvault`).
+
+**Detect if the target repo is the manager's own repo:**
+```bash
+MANAGER_REPO=$(git remote get-url origin | sed 's|.*github.com[:/]||;s|\.git$||')
+TARGET_REPO="<value from spec's Target Repo field>"
+```
+
+**Compute workspace paths:**
+- If `TARGET_REPO` equals `MANAGER_REPO`: the main checkout is the current working directory (the manager repo root)
+- Otherwise: the main checkout is `~/src/<TARGET_REPO>/` (e.g. `~/src/zarlcorp/zvault/`)
+- Worktrees always go to `<main-checkout>/.worktrees/<id>-<name>/`
 
 ## Prerequisites
 
 Sub-agents run in the background and **cannot prompt for permissions**. The following must be pre-configured in `.claude/settings.local.json`:
 
-- `Read(~/src/zarldev/**)` — read files in target repos
-- `Write(~/src/zarldev/**)` — write files in target repos
-- `Edit(~/src/zarldev/**)` — edit files in target repos
+- `Read(~/src/<org>/**)` — read files in target repos
+- `Write(~/src/<org>/**)` — write files in target repos
+- `Edit(~/src/<org>/**)` — edit files in target repos
 - `Bash(go test:*)`, `Bash(go build:*)`, `Bash(go mod tidy:*)`, `Bash(mkdir:*)` — build and test commands
 
 If these are missing, add them before launching agents. Without them, the sub-agent will be auto-denied and produce nothing.
@@ -63,23 +78,37 @@ Launch the agent for that single item.
 #### Step 1: Read the spec
 Read `.manager/specs/<id>-<name>.md` to get:
 - Agent role
-- Target repo (e.g. `zarldev/tsk`)
+- Target repo (e.g. `zarlcorp/zvault`)
 - Requirements
 - GitHub issue number (check via `gh issue list`)
+
+Parse the `Target Repo` field and derive paths:
+```bash
+MANAGER_REPO=$(git remote get-url origin | sed 's|.*github.com[:/]||;s|\.git$||')
+TARGET_REPO="<from spec>"
+TARGET_ORG=$(echo "$TARGET_REPO" | cut -d/ -f1)
+TARGET_NAME=$(echo "$TARGET_REPO" | cut -d/ -f2)
+
+if [ "$TARGET_REPO" = "$MANAGER_REPO" ]; then
+  REPO_ROOT="$(git rev-parse --show-toplevel)"
+else
+  REPO_ROOT="$HOME/src/$TARGET_REPO"
+fi
+```
 
 #### Step 2: Setup the target repo
 
 **If the repo doesn't exist on GitHub:**
 ```bash
-gh repo create zarldev/<repo-name> --public --description "<description>"
+gh repo create $TARGET_REPO --public --description "<description>"
 ```
 
 Then scaffold it with a CI workflow:
 ```bash
-mkdir -p ~/src/zarldev/<repo-name>/.github/workflows
+mkdir -p $REPO_ROOT/.github/workflows
 ```
 
-Create `~/src/zarldev/<repo-name>/.github/workflows/ci.yml` with a basic Go CI pipeline:
+Create `$REPO_ROOT/.github/workflows/ci.yml` with a basic Go CI pipeline:
 ```yaml
 name: CI
 on:
@@ -101,10 +130,10 @@ jobs:
 
 Initialize the repo:
 ```bash
-cd ~/src/zarldev/<repo-name>
+cd $REPO_ROOT
 git init
 git commit --allow-empty -m "initial commit"
-git remote add origin https://github.com/zarldev/<repo-name>.git
+git remote add origin https://github.com/$TARGET_REPO.git
 git push -u origin main
 ```
 
@@ -117,13 +146,14 @@ git push
 
 **If the repo exists but isn't cloned locally:**
 ```bash
-cd ~/src/zarldev
-git clone https://github.com/zarldev/<repo-name>.git
+mkdir -p ~/src/$TARGET_ORG
+cd ~/src/$TARGET_ORG
+git clone https://github.com/$TARGET_REPO.git
 ```
 
 **If already cloned:**
 ```bash
-cd ~/src/zarldev/<repo-name>
+cd $REPO_ROOT
 git checkout main
 git pull
 ```
@@ -133,7 +163,7 @@ git pull
 **ALL sub-agents MUST work in git worktrees — never on the main working tree directly.** This keeps the main working tree clean and avoids conflicts.
 
 ```bash
-cd ~/src/zarldev/<repo-name>
+cd $REPO_ROOT
 git checkout main
 git pull
 git branch work/<id>-<name>
@@ -142,16 +172,16 @@ git worktree add .worktrees/<id>-<name> work/<id>-<name>
 
 Copy permissions to worktree (settings.local.json is gitignored):
 ```bash
-cp ~/src/zarldev/<repo-name>/.claude/settings.local.json \
-   ~/src/zarldev/<repo-name>/.worktrees/<id>-<name>/.claude/settings.local.json
+cp $REPO_ROOT/.claude/settings.local.json \
+   $REPO_ROOT/.worktrees/<id>-<name>/.claude/settings.local.json
 ```
 
 The working directory for the sub-agent is always:
-`~/src/zarldev/<repo-name>/.worktrees/<id>-<name>/`
+`$REPO_ROOT/.worktrees/<id>-<name>/`
 
 #### Step 4: Comment on GitHub issue
 ```bash
-gh issue comment <issue-number> --repo zarldev/<repo-name> --body "Sub-agent launched. Role: <role>. Branch: work/<id>-<name>"
+gh issue comment <issue-number> --repo $TARGET_REPO --body "Sub-agent launched. Role: <role>. Branch: work/<id>-<name>"
 ```
 
 #### Step 5: Launch the sub-agent
@@ -200,7 +230,7 @@ git commit -m "<commit message based on what was built>"
 
 # Push and create PR
 git push -u origin work/<id>-<name>
-gh pr create --repo zarldev/<repo-name> \
+gh pr create --repo $TARGET_REPO \
   --title "<id>: <title>" \
   --body "Closes #<issue-number>
 
@@ -208,7 +238,7 @@ Spec: .manager/specs/<id>-<name>.md" \
   --base main
 
 # Comment on issue
-gh issue comment <issue-number> --repo zarldev/<repo-name> \
+gh issue comment <issue-number> --repo $TARGET_REPO \
   --body "PR created: <pr-url>"
 ```
 
@@ -223,9 +253,9 @@ Task tool call:
   description: "<id> review"
   subagent_type: "general-purpose"
   prompt: |
-    <load .manager/agents/reviewer.md persona>
+    <load ~/.claude/agents/reviewer.md persona>
 
-    Review PR #<pr-number> in zarldev/<repo-name>.
+    Review PR #<pr-number> in $TARGET_REPO.
     Spec: .manager/specs/<id>-<name>.md
 
     Read the spec, read the diff, review against standards, comment findings on the PR.
@@ -234,7 +264,7 @@ Task tool call:
 
 **If approved** → merge:
 ```bash
-gh pr merge <pr-number> --repo zarldev/<repo-name> --squash --delete-branch
+gh pr merge <pr-number> --repo $TARGET_REPO --squash --delete-branch
 ```
 
 **If changes needed** → report findings to user, do NOT merge. Ask if they want to re-delegate with fixes or manually intervene.
